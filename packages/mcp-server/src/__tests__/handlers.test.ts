@@ -146,18 +146,26 @@ describe('handlePayForData', () => {
   })
 
   it('returns isError when estimate exceeds max_amount', async () => {
+    let payCalls = 0
     const deps = baseDeps({
       client: makeClient({
         estimateCost: async () => estimate('5.00'),
+        pay: async () => {
+          payCalls += 1
+          return {
+            mode: 'x402', amount: '5.00', txHash: 'TXHASH', timestamp: Date.now(), data: {},
+          }
+        },
       }),
     })
     const result = await handlePayForData(
-      { url: 'https://provider.example.com/data', max_amount: '1.00' },
+      { url: 'https://provider.example.com/data', max_amount: '0.01' },
       deps,
     )
     assert.equal(result.isError, true)
-    const body = parseResult(result) as any
+    const body = parseResult(result) as { error: string }
     assert.ok(body.error.includes('exceeds max_amount'))
+    assert.equal(payCalls, 0)
   })
 
   it('returns isError when provider returns an undefined amount', async () => {
@@ -257,7 +265,7 @@ describe('handlePayForData', () => {
       )
 
       assert.equal(result.isError, true)
-      assert.ok((parseResult(result) as any).error.includes('undefined or invalid price'))
+      assert.ok((parseResult(result) as { error: string }).error.includes('undefined or invalid price'))
       assert.equal(payCalls, 0)
     }
   })
